@@ -36,18 +36,18 @@ exports.getAllScreams = (req, res) => {
       console.log(err);
     });
 };
-(exports.commentOnScream = check("body")
-  .not()
-  .isEmpty()),
-  async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-    const newComment = {
-      body: req.body.body,
-      createdAt: new Date().toISOString(),
-      screamID: req.params.screamId,
-      userHandle: req.user.handle
-    };
-  };
+// (exports.commentOnScream = check("body")
+//   .not()
+//   .isEmpty()),
+//   async (req, res) => {
+//     const errors = validationResult(req);
+//     if (!errors.isEmpty) {
+//       return res.status(400).json({ errors: errors.array() });
+//     }
+//     const newComment = {
+//       body: req.body.body,
+//       createdAt: new Date().toISOString(),
+//       screamID: req.params.screamId,
+//       userHandle: req.user.handle
+//     };
+//   };

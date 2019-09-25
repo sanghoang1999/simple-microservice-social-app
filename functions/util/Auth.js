@@ -1,6 +1,5 @@
 const { admin, db } = require("./admin");
 module.exports = async (req, res, next) => {
-  console.log(JSON.stringify(req.headers));
   if (
     req.headers.authorization &&
     req.headers.authorization.startsWith("Bearer ")
@@ -14,8 +13,9 @@ module.exports = async (req, res, next) => {
         .where("userId", "==", req.user.uid)
         .limit(1)
         .get();
-      console.log(user);
-      req.user.handle = user.docs[0].handle;
+      console.log(user.docs[0]);
+      req.user.handle = user.docs[0].data().handle;
+      console.log(req.user.handle);
       return next();
     } catch (error) {
       console.log(error);
