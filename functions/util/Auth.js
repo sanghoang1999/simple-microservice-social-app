@@ -9,16 +9,19 @@ module.exports = async (req, res, next) => {
       const decodedToken = await admin.auth().verifyIdToken(token);
       req.user = decodedToken;
       const user = await db
-        .collection("user")
+        .collection("users")
         .where("userId", "==", req.user.uid)
         .limit(1)
         .get();
-      console.log(user.docs[0]);
       req.user.handle = user.docs[0].data().handle;
+      req.user.imageUrl = user.docs[0].data().imageUrl;
       console.log(req.user.handle);
       return next();
     } catch (error) {
       console.log(error);
+      if ((error.code = "auth/id-token-expired")) {
+        return res.status("500").json({ errors: { msg: "Token expired" } });
+      }
       return res.status("500").json("Server Error");
     }
   } else {
