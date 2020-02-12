@@ -9,6 +9,7 @@ const express = require("express");
 const router = express.Router();
 const { check, validationResult } = require("express-validator");
 const BusBoy = require("busboy");
+const jimp = require("jimp");
 const auth = require("../util/Auth");
 firebase.initializeApp(firebaseConfig);
 
@@ -101,27 +102,78 @@ router.post(
 );
 
 router.post("/image", auth, (req, res) => {
-  console.log(req.user.handle);
   const busboy = new BusBoy({ headers: req.headers });
   let filepath;
   let mimetype;
   let imageFileName;
-  console.log(os.tmpdir());
   busboy.on("file", (fieldname, file, filename, encoding, mimetype) => {
-    console.log(fieldname, file, filename, encoding, mimetype);
     if (mimetype !== "image/jpeg" && mimetype !== "image/png") {
       return res.status(400).json({ errors: "Wrong file type submitted" });
     }
     const imageExtension = filename.split(".")[filename.split(".").length - 1];
-    imageFileName = `${Math.round(
-      Math.random() * 100000000000
-    )}.${imageExtension}`;
-    filepath = path.join(os.tmpdir(), imageFileName);
-    mimetype = mimetype;
-    file.pipe(fs.createWriteStream(filepath));
+
+    var imgBuffer = [];
+
+    file.on("data", chunk => imgBuffer.push(chunk));
+    file.on("end", async chunk => {
+      imgBuffer = Buffer.concat(imgBuffer);
+      const prevNameFile = await resize(
+        imgBuffer,
+        256,
+        256,
+        5,
+        imageExtension,
+        mimetype,
+        req.user.handle
+      );
+      await resize(
+        imgBuffer,
+        256,
+        256,
+        100,
+        imageExtension,
+        mimetype,
+        req.user.handle,
+        prevNameFile
+      );
+      res.json({ msg: "image uploaded successfully" });
+    });
   });
-  busboy.on("finish", () => {
-    admin
+
+  busboy.end(req.rawBody);
+});
+
+async function resize(
+  buffer,
+  width,
+  height,
+  quantity,
+  imageExtension,
+  mimetype,
+  userHandle,
+  filename = ""
+) {
+  let imageFileName = "";
+  if (filename.length == 0) {
+    imageFileName =
+      `${Math.round(Math.random() * 100000000000)}` +
+      `${quantity == 100 ? "_high" : "_low"}` +
+      "." +
+      imageExtension;
+  } else {
+    imageFileName = filename.replace("_low", "_high");
+  }
+  console.log(imageFileName);
+
+  filepath = path.join(os.tmpdir(), imageFileName);
+
+  try {
+    img = await jimp.read(buffer);
+    await img
+      .resize(width, height)
+      .quality(quantity)
+      .write(filepath);
+    await admin
       .storage()
       .bucket()
       .upload(filepath, {
@@ -131,24 +183,17 @@ router.post("/image", auth, (req, res) => {
             contentType: mimetype
           }
         }
-      })
-      .then(async () => {
-        const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`;
-        try {
-          await db.doc(`users/${req.user.handle}`).update({ imageUrl });
-          res.json({ msg: "image uploaded successfully" });
-        } catch (error) {
-          console.log(error);
-          res.status(500).json("Server Error");
-        }
-      })
-      .catch(err => {
-        console.log(err);
       });
-  });
-
-  busboy.end(req.rawBody);
-});
+    if (quantity === 100) {
+      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${config.storageBucket}/o/${imageFileName}?alt=media`;
+      await db.doc(`users/${userHandle}`).update({ imageUrl });
+    }
+    return imageFileName;
+  } catch (error) {
+    console.log(error);
+    res.status(500).json("Server Error");
+  }
+}
 
 router.post(
   "/detail",
