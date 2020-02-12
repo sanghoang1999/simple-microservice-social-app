@@ -16,7 +16,7 @@ router.post(
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-    const  body  = req.body.body;
+    const body = req.body.body;
     const userHandle = req.user.handle;
     const newScream = {
       body,
@@ -56,6 +56,31 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ errors: error.code });
+  }
+});
+
+router.get("/:pageSize/:page", async (req, res) => {
+  try {
+    let { pageSize, page } = req.params;
+    pageSize = parseInt(pageSize);
+    page = parseInt(page);
+    let resData = {};
+    screamColection = db.collection("screams").orderBy("createdAt", "desc");
+    screamsData = await screamColection.get();
+    resData.numPage = Math.round(screamsData.size / pageSize);
+    screamsPage = await screamColection
+      .limit(pageSize)
+      .offset((page - 1) * pageSize)
+      .get();
+    resData.screams = screamsPage.docs.map(scream => {
+      let data = scream.data();
+      data.id = scream.id;
+      return data;
+    });
+    res.json(resData);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ errors: error.code });
   }
 });
 
