@@ -269,8 +269,9 @@ router.get("/:handle", async (req, res) => {
         .orderBy("createdAt", "desc")
         .get();
       resData.screams =
-        screamData.docs.map(data => {
-          data.screamId = data.id;
+        screamData.docs.map(scream => {
+          let data = scream.data();
+          data.id = scream.id;
           return data;
         }) || [];
       return res.status(201).json(resData);

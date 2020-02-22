@@ -59,7 +59,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:pageSize/:page", async (req, res) => {
+router.get("/page/:pageSize/:page", async (req, res) => {
   try {
     let { pageSize, page } = req.params;
     pageSize = parseInt(pageSize);
@@ -147,7 +147,7 @@ router.post(
 router.get("/:screamId/like", auth, async (req, res) => {
   try {
     const scream = await db.doc(`screams/${req.params.screamId}`).get();
-    if (scream) {
+    if (scream.exists) {
       const like = await db
         .collection("likes")
         .where("screamId", "==", req.params.screamId)
