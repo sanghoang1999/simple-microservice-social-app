@@ -1,7 +1,8 @@
 const firebaseConfig = require("../util/config");
 const firebase = require("firebase");
 const config = require("../util/config");
-const { db, admin } = require("../util/admin");
+const uuid = require("uuid");
+const { db, admin, rdb } = require("../util/admin");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -11,6 +12,8 @@ const { check, validationResult } = require("express-validator");
 const BusBoy = require("busboy");
 const jimp = require("jimp");
 const auth = require("../util/Auth");
+const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../config");
 firebase.initializeApp(firebaseConfig);
 
 router.post(
@@ -51,9 +54,20 @@ router.post(
         userId: newAuth.user.uid
       };
       await db.doc(`/users/${handle}`).set(newUser);
-
-      const token = await newAuth.user.getIdToken();
-      res.status(201).json({ token });
+      const user = await db
+        .collection("users")
+        .where("userId", "==", newUser.userId)
+        .limit(1)
+        .get();
+      const uid = uuid();
+      const payload = {
+        handle: user.docs[0].data().handle,
+        imageUrl: user.docs[0].data().imageUrl
+      };
+      jwt.sign(payload, jwtSecret, { expiresIn: "1h" }, (err, token) => {
+        if (err) throw err;
+        res.json({ token });
+      });
     } catch (error) {
       console.log(error);
       if (error.code === "auth/email-already-in-use") {
@@ -84,8 +98,20 @@ router.post(
       const data = await firebase
         .auth()
         .signInWithEmailAndPassword(email, password);
-      const token = await data.user.getIdToken();
-      res.status(200).json({ token });
+      const user = await db
+        .collection("users")
+        .where("userId", "==", data.user.uid)
+        .limit(1)
+        .get();
+      const uid = uuid();
+      const payload = {
+        handle: user.docs[0].data().handle,
+        imageUrl: user.docs[0].data().imageUrl
+      };
+      jwt.sign(payload, jwtSecret, { expiresIn: "1h" }, (err, token) => {
+        if (err) throw err;
+        res.json({ token });
+      });
     } catch (error) {
       console.log(error);
       if (error.code === "auth/wrong-password") {
@@ -126,7 +152,7 @@ router.post("/image", auth, (req, res) => {
         mimetype,
         req.user.handle
       );
-      await resize(
+      const newNameFile = await resize(
         imgBuffer,
         256,
         256,
@@ -136,6 +162,7 @@ router.post("/image", auth, (req, res) => {
         req.user.handle,
         prevNameFile
       );
+      res.user.imageUrl = prevNameFile;
       res.json({ msg: "image uploaded successfully" });
     });
   });
@@ -244,6 +271,18 @@ router.get("/me", auth, async (req, res) => {
         likes.docs.map(like => {
           return like.data();
         }) || [];
+      const notifications = await db
+        .collection("notifications")
+        .where("recipient", "==", req.user.handle)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
+      resData.notifications =
+        notifications.docs.map(noti => {
+          let temp = noti.data();
+          temp.notificationId = noti.id;
+          return temp;
+        }) || [];
       return res.status(201).json(resData);
     } else {
       return res.status(404).json({ msg: " No user Detail " });
@@ -284,4 +323,27 @@ router.get("/:handle", async (req, res) => {
   }
 });
 
+router.post("/notifications", auth, async (req, res) => {
+  console.log("emvuidi");
+  let batch = db.batch();
+  req.body.forEach(notificationId => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, { read: true });
+  });
+  req.body.forEach(notificationId => {
+    rdb
+      .ref(`notifications`)
+      .child(notificationId)
+      .remove();
+  });
+  batch
+    .commit()
+    .then(() => {
+      return res.json({ message: "Notifications marked read" });
+    })
+    .catch(err => {
+      console.error(err);
+      return res.status(500).json({ error: err.code });
+    });
+});
 module.exports = router;

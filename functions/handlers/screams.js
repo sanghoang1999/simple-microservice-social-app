@@ -158,7 +158,9 @@ router.get("/:screamId/like", auth, async (req, res) => {
       if (like.empty) {
         const newLikeSchema = {
           screamId: req.params.screamId,
-          userHandle: req.user.handle
+          createdAt: new Date().toISOString(),
+          userHandle: req.user.handle,
+          userImage: req.user.imageUrl
         };
         await db.collection("likes").add(newLikeSchema);
         await db
@@ -176,7 +178,20 @@ router.get("/:screamId/like", auth, async (req, res) => {
     return res.status(500).json({ errors: error.code });
   }
 });
-
+router.get('/:screamId/listLike',async(req,res)=> {
+  try {
+   const listLikeStream = await db.collection('likes').where("screamId", "==", req.params.screamId).orderBy("createdAt", "desc").get();
+    const resData = listLikeStream.docs.map(data=> {
+      console.log(data);
+      return data.data();
+    })
+    res.json(resData);
+  } catch(e) {
+    // statements
+    console.log(e);
+    return res.status(500).json({ errors: error.code });
+  }
+})
 router.get("/:screamId/unlike", auth, async (req, res) => {
   try {
     const scream = await db.doc(`screams/${req.params.screamId}`).get();

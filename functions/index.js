@@ -1,6 +1,6 @@
 const functions = require("firebase-functions");
 const express = require("express");
-const { db } = require("./util/admin");
+const { db,rdb} = require("./util/admin");
 const auth = require("./util/Auth");
 const busboy = require("busboy");
 const app = express();
@@ -8,23 +8,7 @@ const cors = require("cors");
 app.use(cors());
 
 app.use(express.json());
-const {
-  getAllScreams,
-  postOneScream,
-  getScream,
-  commentOnScream,
-  likeScream,
-  unlikeScream,
-  deleteScream
-} = require("./handlers/screams");
-const {
-  signup,
-  login,
-  uploadImage,
-  addUserDetails,
-  getAuthenticatedUser,
-  getUserDetails
-} = require("./handlers/users");
+
 
 app.use("/user", require("./handlers/users"));
 app.use("/scream", require("./handlers/screams"));
@@ -36,14 +20,29 @@ exports.createNotificationOnLike = functions
   .firestore.document("/likes/{id}")
   .onCreate(async snapshot => {
     const scream = await db.doc(`/screams/${snapshot.data().screamId}`).get();
+    if (
+      scream.exists &&
+      scream.data().userHandle !== snapshot.data().userHandle
+    ) {
     await db.doc(`/notifications/${snapshot.id}`).set({
       createdAt: new Date().toISOString(),
       recipient: scream.data().userHandle,
       sender: snapshot.data().userHandle,
+      userImage:snapshot.data().userImage,
       type: "like",
       read: false,
       screamId: scream.id
     });
+    await rdb.ref('notifications').child(`${snapshot.id}`).set({
+      createdAt: new Date().toISOString(),
+      recipient: scream.data().userHandle,
+      sender: snapshot.data().userHandle,
+      userImage:snapshot.data().userImage,
+      type: "like",
+      read: false,
+      screamId: scream.id
+    })
+  }
   });
 exports.deleteNotificationOnUnLike = functions
   .region("asia-east2")
@@ -58,12 +57,22 @@ exports.createNotificationOnComment = functions
   .onCreate(async snapshot => {
     const scream = await db.doc(`/screams/${snapshot.data().screamId}`).get();
     if (
-      scream.exist &&
-      scream.data().userHandle != snapshot.data().userHandle
+      scream.exists &&
+      scream.data().userHandle !== snapshot.data().userHandle
     ) {
       await db.doc(`/notifications/${snapshot.id}`).set({
         createdAt: new Date().toISOString(),
         recipient: scream.data().userHandle,
+        userImage:snapshot.data().userImage,
+        sender: snapshot.data().userHandle,
+        type: "comment",
+        read: false,
+        screamId: scream.id
+      });
+      await rdb.ref('notifications').child(`${snapshot.id}`).set({
+        createdAt: new Date().toISOString(),
+        recipient: scream.data().userHandle,
+        userImage:snapshot.data().userImage,
         sender: snapshot.data().userHandle,
         type: "comment",
         read: false,
