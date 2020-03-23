@@ -1,9 +1,10 @@
 module.exports = {
-  apiKey: "AIzaSyAva_tvphC_Q_yS471YTSYsFoq_7AUJTjg",
-  authDomain: "social-app-f685d.firebaseapp.com",
-  databaseURL: "https://social-app-f685d.firebaseio.com",
-  projectId: "social-app-f685d",
-  storageBucket: "social-app-f685d.appspot.com",
-  messagingSenderId: "345065672139",
-  appId: "1:345065672139:web:7e893248d2909fa4cafa4e"
+  apiKey: "AIzaSyAyahLsaQSVxuRCNnLHjbhQ-pKu4CizGwc",
+  authDomain: "micro-social-app.firebaseapp.com",
+  databaseURL: "https://micro-social-app.firebaseio.com",
+  projectId: "micro-social-app",
+  storageBucket: "micro-social-app.appspot.com",
+  messagingSenderId: "246623029980",
+  appId: "1:246623029980:web:562bb2fefe80ba243e4219",
+  measurementId: "G-3S7WQQ23HD"
 };
